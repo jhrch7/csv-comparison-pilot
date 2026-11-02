@@ -1,6 +1,6 @@
 # CSV comparison pilot
 
-Compare two CSV exports by one agreed key and get a small, auditable difference report. You can also request changes in selected shared columns, such as catalogue prices or stock.
+Compare two CSV exports by one agreed key and get a small, auditable difference report. You can also request a report of changes in selected columns, such as catalogue prices or stock.
 
 **Pilot enquiries: indicative A$40 total for up to 1,000 combined data rows.**
 The final quote confirms scope, availability, turnaround and payment method before an order is accepted. One correction within the agreed comparison rules is included. This is an enquiry offer.
