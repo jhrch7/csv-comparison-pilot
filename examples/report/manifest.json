@@ -1,0 +1,78 @@
+{
+  "version": "1.0.0",
+  "key": "Contact Name",
+  "normalisation": "none",
+  "input_delimiter": ",",
+  "input_encoding": "utf-8-sig",
+  "source_record_definition": "1-based CSV data record, excluding the header; not a physical line number",
+  "sources": {
+    "left": {
+      "name": "left.csv",
+      "sha256": "9a452813cbe14ccdcc78456597b947d088468e7ff2328cca3fbcc0e62367f1f9",
+      "bytes": 232,
+      "columns": [
+        "Contact Name",
+        "Email",
+        "Status"
+      ]
+    },
+    "right": {
+      "name": "right.csv",
+      "sha256": "ffea4260ca6d618caef88b16e9da65b7cb72960840d172eca9d879abf9391400",
+      "bytes": 67,
+      "columns": [
+        "Contact Name",
+        "Account"
+      ]
+    }
+  },
+  "counts": {
+    "left": {
+      "input": 5,
+      "only": 1,
+      "shared": 1,
+      "review": 3
+    },
+    "right": {
+      "input": 3,
+      "only": 1,
+      "shared": 1,
+      "review": 1
+    }
+  },
+  "formula_like_csv_cells_prefixed_with_apostrophe": 0,
+  "metadata_columns": {
+    "left": [
+      "__source_record__",
+      "__comparison_key__"
+    ],
+    "right": [
+      "__source_record__",
+      "__comparison_key__"
+    ]
+  },
+  "outputs": {
+    "only_left.csv": {
+      "sha256": "bb86d4b8cc7250952191293263a052e31c3377302d3280de7678b708d355f000",
+      "bytes": 113
+    },
+    "only_right.csv": {
+      "sha256": "1f7a964103b28edf7df5475c3b21d099bc1af49b86926beac65d6be325b129a8",
+      "bytes": 88
+    },
+    "review.csv": {
+      "sha256": "da792eab6d3b26ac389f651813d87e8b4eada30d1e1406de1b9593c55f274e89",
+      "bytes": 580
+    },
+    "shared_keys.csv": {
+      "sha256": "2ab6b6d5ef32eff3d97a5db0f39d13a4d767bb8761235eaaf72737526c5864c4",
+      "bytes": 131
+    }
+  },
+  "limits": [
+    "Shared keys do not prove two rows refer to the same person.",
+    "No fuzzy matching, enrichment or correction is performed.",
+    "Original input files are the authoritative source of original cell values.",
+    "Reports contain your data; keep them private."
+  ]
+}

@@ -1,0 +1,5 @@
+﻿source,source_record,reason,comparison_key,original_row_json
+left,4,blank key,,"{""Contact Name"": """", ""Email"": ""unknown@example.test"", ""Status"": ""review blank key""}"
+left,2,duplicate comparison key,Rae Patel,"{""Contact Name"": ""Rae Patel"", ""Email"": ""rae.one@example.test"", ""Status"": ""review duplicate""}"
+left,3,duplicate comparison key,Rae Patel,"{""Contact Name"": ""Rae Patel"", ""Email"": ""rae.two@example.test"", ""Status"": ""review duplicate""}"
+right,2,duplicate comparison key,Rae Patel,"{""Contact Name"": ""Rae Patel"", ""Account"": ""A200""}"
