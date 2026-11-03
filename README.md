@@ -18,6 +18,10 @@ Start with the two row counts, column headers, key, and any value columns you wa
 
 The default key comparison is exact and case-sensitive. Trimming or Unicode case-folding can be agreed explicitly. A shared key does not prove two records describe the same entity. Non-key values are compared only when the columns are agreed in advance, as exact text: `20.00` and `20.0` differ. No numeric, date or currency interpretation is included.
 
+## Delivery
+
+The report is emailed as an inline JSON bundle containing the CSV text and file checksums. You need a way to extract that text into CSV files. The quote confirms that the delivery format and report size work for you before an order is agreed.
+
 ## Pilot limits
 
 Use synthetic or non-sensitive catalogue-style CSV data. This pilot is unsuitable for confidential customer records, credentials, regulated data or high-stakes decisions. Files and results pass through email and an AI-assisted processing workflow. Keep your original files.
