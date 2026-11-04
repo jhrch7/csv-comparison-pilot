@@ -20,7 +20,15 @@ The default key comparison is exact and case-sensitive. Trimming or Unicode case
 
 ## Delivery
 
-The report is emailed as an inline JSON bundle containing the CSV text and file checksums. You need a way to extract that text into CSV files. The quote confirms that the delivery format and report size work for you before an order is agreed.
+The report is emailed as an inline JSON bundle containing the CSV text and file checksums. The [free offline report unpacker](https://github.com/jhrch7/csv-comparison-pilot/releases/download/unpacker-v1.0.0/report-unpacker.html) saves its files together as a ZIP:
+
+1. Download `report-unpacker.html` and open the saved file in Chrome.
+2. Paste the plain-text report message, or open a saved `.txt` or `.json` copy, then select **Check bundle**.
+3. Select **Download ZIP** after every file passes its length and checksum checks.
+
+The single HTML file runs locally without uploading your report. **Load synthetic example** lets you try it before receiving a report. File contents, UTF-8 byte-order marks and line endings are preserved. The helper accepts the five standard report files and the optional changed-cell report, up to 10 MiB per message.
+
+The unpacker was exercised in desktop Chrome on macOS, including a 390-pixel viewport. Other browsers, phone use and other email providers have not been verified. The quote still confirms that the actual delivery format and report size work for you before an order is agreed. [Verification and source references](TESTING.md).
 
 ## Pilot limits
 

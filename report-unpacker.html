@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>CSV report unpacker</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f5f7fb;line-height:1.5;color-scheme:light}*{box-sizing:border-box}[hidden]{display:none!important}body{max-width:54rem;margin:2.5rem auto;padding:0 1rem 2rem}main{background:white;border:1px solid #dce2ec;border-radius:16px;padding:clamp(1.1rem,4vw,2.2rem)}h1{font-size:clamp(1.7rem,5vw,2.2rem);line-height:1.15;letter-spacing:-.025em;margin:.65rem 0 1rem}h2{font-size:1.1rem;margin:0 0 .6rem}.eyebrow{font-size:.85rem;color:#46546d;margin:0}.lead{max-width:43rem;margin:0 0 1rem}.privacy{background:#eef4ff;border-left:3px solid #2563eb;padding:.75rem 1rem;margin:1rem 0 1.5rem}label{display:block;font-weight:650;margin-bottom:.4rem}textarea{display:block;width:100%;min-height:15rem;resize:vertical;border:1px solid #8b98af;border-radius:8px;padding:.8rem;font:14px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace;color:#172033;background:#fff}textarea:focus,input:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #93b4ff;outline-offset:3px}.help{font-size:.88rem;color:#46546d;margin:.4rem 0 1rem}.file-row{padding:.8rem 0 1rem}input[type=file]{max-width:100%;font:inherit;font-size:.9rem}.actions{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}button,.download{font:inherit;font-weight:650;min-height:44px;border-radius:8px;padding:.65rem 1rem;cursor:pointer;border:1px solid #8b98af;background:white;color:#172033}button.primary,.download{background:#1d4ed8;color:white;border-color:#1d4ed8}.download{display:inline-flex;text-decoration:none;margin:.4rem 0}button:disabled{cursor:default;opacity:.5}#status{margin:1rem 0 .5rem}#error{padding:.8rem 1rem;color:#8e1b18;background:#fff1f0;border:1px solid #f2b6b2;border-radius:8px}#results{border-top:1px solid #dce2ec;margin-top:1.3rem;padding-top:1.3rem}.file-list{margin:.7rem 0 1rem;padding-left:1.3rem}.file-list li{padding:.15rem 0;overflow-wrap:anywhere}.file-size{color:#46546d;font-size:.9rem}details{margin-top:1rem}summary{cursor:pointer;color:#334155}pre{font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere;white-space:pre-wrap;background:#f5f7fb;padding:.8rem;border-radius:8px}footer{font-size:.83rem;color:#46546d;margin:1rem .2rem}footer a{color:#1d4ed8}@media(max-width:430px){body{margin:1rem auto;padding:0 .65rem 1rem}main{border-radius:12px}.actions button{flex-grow:1}.file-row label{font-size:.92rem}}
+</style>
+</head>
+<body>
+<main>
+<p class="eyebrow">CSV comparison pilot · Free delivery helper</p>
+<h1>Unpack your CSV report</h1>
+<p class="lead">Paste the report bundle from your email, check the files, then save them together as a ZIP.</p>
+<p class="privacy">Everything is processed in this browser. Your report is not uploaded.</p>
+<label for="message">Report message or JSON bundle</label>
+<textarea id="message" spellcheck="false" autocapitalize="off" autocomplete="off" aria-describedby="message-help" placeholder="Paste the message containing BEGIN REPORT JSON … END REPORT JSON, or the JSON itself."></textarea>
+<p class="help" id="message-help">Use the original plain-text message. This helper accepts messages up to 10 MiB.</p>
+<div class="file-row"><label for="message-file">Or open a saved .txt or .json message</label><input id="message-file" type="file" accept=".txt,.json,text/plain,application/json"></div>
+<div class="actions"><button id="check" class="primary" type="button" disabled>Check bundle</button><button id="demo" type="button">Load synthetic example</button><button id="clear" type="button">Clear</button></div>
+<p id="status" role="status">Paste a report to begin.</p>
+<p id="error" role="alert" hidden></p>
+<section id="results" aria-labelledby="result-heading" hidden><h2 id="result-heading">Your files are ready</h2><ul id="files" class="file-list"></ul><a id="download" class="download" download="csv-report-files.zip">Download ZIP</a><details><summary>File checksums</summary><p class="help">Each file is checked against the length and SHA-256 recorded in this bundle. The file contents and line endings are preserved.</p><pre id="checksums"></pre></details></section>
+<noscript><p>This tool needs JavaScript to check and save the files.</p></noscript>
+</main>
+<footer>Report unpacker 1.0.0 · <a href="https://github.com/jhrch7/csv-comparison-pilot" rel="noreferrer">Source and pilot details</a> · MIT licence</footer>
+<script id="unpacker-core">
+(function(root){
+'use strict';
+const FORMAT='csv-report-inline-utf8-json-v1';
+const MAX_BYTES=10*1024*1024;
+const REQUIRED=['only_left.csv','only_right.csv','shared_keys.csv','review.csv','manifest.json'];
+const ALLOWED=new Set([...REQUIRED,'value_changes.csv']);
+const encode=s=>new TextEncoder().encode(s);
+function parseMessage(source){
+  if(typeof source!=='string'||!source.trim())throw new Error('Paste a report message or choose a saved message first.');
+  if(encode(source).byteLength>MAX_BYTES)throw new Error('This message is larger than 10 MiB. Confirm another delivery format before using it.');
+  const text=source.trim();
+  if(text.startsWith('{'))return JSON.parse(text);
+  const lines=source.split(/\r?\n/),starts=[],ends=[];
+  lines.forEach((line,i)=>{if(line.trim()==='BEGIN REPORT JSON')starts.push(i);if(line.trim()==='END REPORT JSON')ends.push(i);});
+  if(starts.length!==1||ends.length!==1||ends[0]<=starts[0])throw new Error('Paste one complete BEGIN REPORT JSON … END REPORT JSON block, or the JSON itself.');
+  return JSON.parse(lines.slice(starts[0]+1,ends[0]).join('\n'));
+}
+async function validate(source){
+  let bundle;
+  try{bundle=parseMessage(source);}catch(error){if(error instanceof SyntaxError)throw new Error('The JSON is incomplete or changed. Copy the original plain-text bundle again.');throw error;}
+  if(!bundle||bundle.format!==FORMAT||!Array.isArray(bundle.files))throw new Error('This is not a supported CSV report bundle.');
+  if(bundle.files.length<REQUIRED.length||bundle.files.length>ALLOWED.size)throw new Error('The bundle has an unexpected number of report files.');
+  if(!root.crypto||!root.crypto.subtle)throw new Error('This browser cannot verify SHA-256 here. Open this saved file in a current Chrome browser.');
+  const seen=new Set(),files=[];let total=0;
+  for(const entry of bundle.files){
+    if(!entry||!ALLOWED.has(entry.name)||seen.has(entry.name))throw new Error('The bundle contains an unexpected or repeated file name.');
+    seen.add(entry.name);
+    if(typeof entry.utf8!=='string'||!Number.isSafeInteger(entry.bytes)||entry.bytes<0||typeof entry.sha256!=='string'||!/^([0-9a-f]{64})$/i.test(entry.sha256))throw new Error(entry.name+': missing or invalid file information.');
+    const data=encode(entry.utf8);total+=data.byteLength;
+    if(total>MAX_BYTES)throw new Error('The report files exceed the 10 MiB unpacking limit.');
+    if(data.byteLength!==entry.bytes)throw new Error(entry.name+': the file length does not match. Copy the original bundle again.');
+    const digest=new Uint8Array(await root.crypto.subtle.digest('SHA-256',data));
+    const hash=Array.from(digest,b=>b.toString(16).padStart(2,'0')).join('');
+    if(hash!==entry.sha256.toLowerCase())throw new Error(entry.name+': the checksum does not match. Copy the original bundle again.');
+    files.push({name:entry.name,bytes:data.byteLength,sha256:hash,data});
+  }
+  if(REQUIRED.some(name=>!seen.has(name)))throw new Error('The bundle is missing a required report file.');
+  return files;
+}
+const CRC_TABLE=Uint32Array.from({length:256},(_,n)=>{let c=n;for(let k=0;k<8;k++)c=(c&1)?(0xedb88320^(c>>>1)):(c>>>1);return c>>>0;});
+function crc32(data){let c=0xffffffff;for(const b of data)c=CRC_TABLE[(c^b)&255]^(c>>>8);return(c^0xffffffff)>>>0;}
+function zip(files){
+  // PKWARE APPNOTE 4.3.7/4.3.12/4.3.16: method 0, little endian,
+  // ASCII report names, no extras, and a deterministic 1980-01-01 timestamp.
+  const chunks=[],central=[];let offset=0,centralSize=0;
+  for(const file of files){
+    const name=encode(file.name),data=file.data,crc=crc32(data),local=new Uint8Array(30),lv=new DataView(local.buffer);
+    lv.setUint32(0,0x04034b50,true);lv.setUint16(4,20,true);lv.setUint16(12,0x21,true);lv.setUint32(14,crc,true);lv.setUint32(18,data.byteLength,true);lv.setUint32(22,data.byteLength,true);lv.setUint16(26,name.byteLength,true);
+    chunks.push(local,name,data);
+    const head=new Uint8Array(46),cv=new DataView(head.buffer);
+    cv.setUint32(0,0x02014b50,true);cv.setUint16(4,20,true);cv.setUint16(6,20,true);cv.setUint16(14,0x21,true);cv.setUint32(16,crc,true);cv.setUint32(20,data.byteLength,true);cv.setUint32(24,data.byteLength,true);cv.setUint16(28,name.byteLength,true);cv.setUint32(42,offset,true);
+    central.push(head,name);centralSize+=head.byteLength+name.byteLength;offset+=local.byteLength+name.byteLength+data.byteLength;
+  }
+  const end=new Uint8Array(22),ev=new DataView(end.buffer);
+  ev.setUint32(0,0x06054b50,true);ev.setUint16(8,files.length,true);ev.setUint16(10,files.length,true);ev.setUint32(12,centralSize,true);ev.setUint32(16,offset,true);
+  return new Blob([...chunks,...central,end],{type:'application/zip'});
+}
+root.CsvReportBundle=Object.freeze({parseMessage,validate,zip,FORMAT,MAX_BYTES});
+})(globalThis);
+</script>
+<script id="unpacker-ui">
+(function(){
+'use strict';
+const $=id=>document.getElementById(id),core=globalThis.CsvReportBundle;
+const DEMO={"format":"csv-report-inline-utf8-json-v1","data_classification":"public synthetic example; no customer data or paid order","files":[{"name":"only_left.csv","bytes":113,"sha256":"bb86d4b8cc7250952191293263a052e31c3377302d3280de7678b708d355f000","utf8":"\ufeff__source_record__,__comparison_key__,Contact Name,Email,Status\n5,Mina Chen,Mina Chen,mina@example.test,active\n"},{"name":"only_right.csv","bytes":88,"sha256":"1f7a964103b28edf7df5475c3b21d099bc1af49b86926beac65d6be325b129a8","utf8":"\ufeff__source_record__,__comparison_key__,Contact Name,Account\n3,Sam Ortiz,Sam Ortiz,A300\n"},{"name":"shared_keys.csv","bytes":131,"sha256":"2ab6b6d5ef32eff3d97a5db0f39d13a4d767bb8761235eaaf72737526c5864c4","utf8":"\ufeffcomparison_key,left_source_record,right_source_record,left_original_key,right_original_key\nAlex Jones,1,1,Alex Jones,Alex Jones\n"},{"name":"review.csv","bytes":580,"sha256":"da792eab6d3b26ac389f651813d87e8b4eada30d1e1406de1b9593c55f274e89","utf8":"\ufeffsource,source_record,reason,comparison_key,original_row_json\nleft,4,blank key,,\"{\"\"Contact Name\"\": \"\"\"\", \"\"Email\"\": \"\"unknown@example.test\"\", \"\"Status\"\": \"\"review blank key\"\"}\"\nleft,2,duplicate comparison key,Rae Patel,\"{\"\"Contact Name\"\": \"\"Rae Patel\"\", \"\"Email\"\": \"\"rae.one@example.test\"\", \"\"Status\"\": \"\"review duplicate\"\"}\"\nleft,3,duplicate comparison key,Rae Patel,\"{\"\"Contact Name\"\": \"\"Rae Patel\"\", \"\"Email\"\": \"\"rae.two@example.test\"\", \"\"Status\"\": \"\"review duplicate\"\"}\"\nright,2,duplicate comparison key,Rae Patel,\"{\"\"Contact Name\"\": \"\"Rae Patel\"\", \"\"Account\"\": \"\"A200\"\"}\"\n"},{"name":"manifest.json","bytes":1994,"sha256":"1379e620964bfbacaa1e04e5ca99f18ff920e142941dfd8459bff120d67e5990","utf8":"{\n  \"version\": \"1.0.0\",\n  \"key\": \"Contact Name\",\n  \"normalisation\": \"none\",\n  \"input_delimiter\": \",\",\n  \"input_encoding\": \"utf-8-sig\",\n  \"source_record_definition\": \"1-based CSV data record, excluding the header; not a physical line number\",\n  \"sources\": {\n    \"left\": {\n      \"name\": \"left.csv\",\n      \"sha256\": \"9a452813cbe14ccdcc78456597b947d088468e7ff2328cca3fbcc0e62367f1f9\",\n      \"bytes\": 232,\n      \"columns\": [\n        \"Contact Name\",\n        \"Email\",\n        \"Status\"\n      ]\n    },\n    \"right\": {\n      \"name\": \"right.csv\",\n      \"sha256\": \"ffea4260ca6d618caef88b16e9da65b7cb72960840d172eca9d879abf9391400\",\n      \"bytes\": 67,\n      \"columns\": [\n        \"Contact Name\",\n        \"Account\"\n      ]\n    }\n  },\n  \"counts\": {\n    \"left\": {\n      \"input\": 5,\n      \"only\": 1,\n      \"shared\": 1,\n      \"review\": 3\n    },\n    \"right\": {\n      \"input\": 3,\n      \"only\": 1,\n      \"shared\": 1,\n      \"review\": 1\n    }\n  },\n  \"formula_like_csv_cells_prefixed_with_apostrophe\": 0,\n  \"metadata_columns\": {\n    \"left\": [\n      \"__source_record__\",\n      \"__comparison_key__\"\n    ],\n    \"right\": [\n      \"__source_record__\",\n      \"__comparison_key__\"\n    ]\n  },\n  \"outputs\": {\n    \"only_left.csv\": {\n      \"sha256\": \"bb86d4b8cc7250952191293263a052e31c3377302d3280de7678b708d355f000\",\n      \"bytes\": 113\n    },\n    \"only_right.csv\": {\n      \"sha256\": \"1f7a964103b28edf7df5475c3b21d099bc1af49b86926beac65d6be325b129a8\",\n      \"bytes\": 88\n    },\n    \"review.csv\": {\n      \"sha256\": \"da792eab6d3b26ac389f651813d87e8b4eada30d1e1406de1b9593c55f274e89\",\n      \"bytes\": 580\n    },\n    \"shared_keys.csv\": {\n      \"sha256\": \"2ab6b6d5ef32eff3d97a5db0f39d13a4d767bb8761235eaaf72737526c5864c4\",\n      \"bytes\": 131\n    }\n  },\n  \"limits\": [\n    \"Shared keys do not prove two rows refer to the same person.\",\n    \"No fuzzy matching, enrichment or correction is performed.\",\n    \"Original input files are the authoritative source of original cell values.\",\n    \"Reports contain your data; keep them private.\"\n  ]\n}\n"}]};
+let generation=0,url=null;
+function invalidate(){
+  generation++;if(url){URL.revokeObjectURL(url);url=null;}
+  $('download').removeAttribute('href');$('results').hidden=true;$('files').replaceChildren();$('checksums').textContent='';$('error').hidden=true;$('error').textContent='';$('check').disabled=!$('message').value.trim();$('status').textContent='Check the bundle to prepare your files.';
+}
+function showError(error){$('error').textContent=error.message||String(error);$('error').hidden=false;$('status').textContent='No download is ready. Check the message and try again.';}
+async function check(){
+  invalidate();const version=generation,source=$('message').value;$('check').disabled=true;$('status').textContent='Checking the files…';
+  try{
+    const files=await core.validate(source);if(version!==generation)return;
+    const blob=core.zip(files);url=URL.createObjectURL(blob);$('download').href=url;
+    for(const file of files){const row=document.createElement('li'),name=document.createElement('span'),size=document.createElement('span');name.textContent=file.name;size.className='file-size';size.textContent=' — '+file.bytes.toLocaleString()+' bytes';row.append(name,size);$('files').append(row);}
+    $('checksums').textContent=files.map(f=>f.name+'\n'+f.sha256).join('\n\n');$('results').hidden=false;$('status').textContent=files.length+' files passed their length and checksum checks. Ready to download.';
+  }catch(error){if(version===generation)showError(error);}finally{if(version===generation)$('check').disabled=!$('message').value.trim();}
+}
+$('message').addEventListener('input',invalidate);
+$('check').addEventListener('click',check);
+$('demo').addEventListener('click',()=>{$('message-file').value='';$('message').value=JSON.stringify(DEMO,null,2);check();});
+$('clear').addEventListener('click',()=>{$('message').value='';$('message-file').value='';invalidate();$('status').textContent='Paste a report to begin.';$('message').focus();});
+$('message-file').addEventListener('change',async()=>{
+  $('message').value='';invalidate();const version=generation,file=$('message-file').files[0];if(!file)return;
+  try{if(file.size>core.MAX_BYTES)throw new Error('This message is larger than 10 MiB.');const text=await file.text();if(version!==generation)return;$('message').value=text;invalidate();$('status').textContent='Message opened. Check the bundle to prepare your files.';}catch(error){if(version===generation)showError(error);}
+});
+window.addEventListener('pagehide',()=>{if(url)URL.revokeObjectURL(url);});
+})();
+</script>
+<!-- MIT License
+
+Copyright (c) 2026 jhrch7
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software, documentation and synthetic sample data (the "Materials"), to deal
+in the Materials without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Materials, and to permit persons to whom the Materials are
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Materials.
+
+THE MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE MATERIALS OR THE USE OR OTHER DEALINGS IN THE
+MATERIALS.
+ -->
+</body>
+</html>
